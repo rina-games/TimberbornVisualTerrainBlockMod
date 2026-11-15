@@ -11,21 +11,32 @@ using UnityEngine;
 namespace Jove.VisualTerrainBlock
 {
     /// <summary>
-    /// 载入存档时，游戏会做一次"地形物理支撑"校验：
-    /// TerrainPhysicsPostLoader.ValidateAll → Validate → RemoveBlockObjects / RemoveTerrain，
-    /// 把所有不连通到地面支撑的结构删掉（弹窗「对象位置无效，已被删除」）。
+    /// 载入存档时的地形物理校验会删掉所有"不连通到地面支撑"的方块，
+    /// 我们的悬空地形块天生如此，所以必须在删除点把它们摘出来。
     ///
-    /// 我们的悬空地形块天生就是无支撑的，必然被这一套清掉，所以这里补一刀：
-    /// 在 RemoveBlockObjects 执行前，把所有带 VisualTerrainBlockMarker 的方块
-    /// 塞进内部白名单 _validBlockObjects，让它们免于被删；其它对象的校验逻辑保持原样。
+    /// 实测（1.1.2.8）真正执行删除的是这一条链：
+    ///   TerrainPhysicsUpdater.PostLoad()
+    ///     → TerrainAndBlockObjectsToDeleteFinder.FindAll(terrain, terrainSet, blockObjectsToDelete)
+    ///     → 逐个删除集合里的方块，日志 "Loaded BlockObject ... is not supported by terrain physics. Deleting it."
+    ///
+    /// 另有一条更早的路径 TerrainPhysicsPostLoader.RemoveBlockObjects()（会报 LoadingIssue 弹窗），两处都处理。
+    /// 都只摘掉我们自己的方块，其它对象的校验保持原样。
     /// </summary>
     public class LoadCleanupPatch : ILoadableSingleton
     {
         private const string HarmonyId = "jove.visualterrainblock.loadcleanup";
 
+        private static readonly HashSet<BlockObject> OurBlocks = new HashSet<BlockObject>();
+
         private static FieldInfo _validBlockObjectsField;
         private static FieldInfo _entityRegistryField;
+        private static EntityRegistry _entityRegistry;
         private static bool _patched;
+
+        public LoadCleanupPatch(EntityRegistry entityRegistry)
+        {
+            _entityRegistry = entityRegistry;
+        }
 
         public void Load()
         {
@@ -37,7 +48,8 @@ namespace Jove.VisualTerrainBlock
             _patched = true;
             try
             {
-                Patch();
+                PatchPostLoaderRemove();
+                PatchDeleteFinder();
             }
             catch (Exception exception)
             {
@@ -45,47 +57,66 @@ namespace Jove.VisualTerrainBlock
             }
         }
 
-        private static void Patch()
+        private static void PatchPostLoaderRemove()
         {
             Type loaderType = Type.GetType("Timberborn.TerrainPhysics.TerrainPhysicsPostLoader, Timberborn.TerrainPhysics");
-            if (loaderType == null)
-            {
-                Debug.LogError("[VisualTerrainBlock] 找不到 TerrainPhysicsPostLoader，补丁未安装");
-                return;
-            }
-
-            MethodInfo target = loaderType.GetMethod("RemoveBlockObjects",
+            MethodInfo target = loaderType?.GetMethod("RemoveBlockObjects",
                 BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
             if (target == null)
             {
-                Debug.LogError("[VisualTerrainBlock] 找不到 TerrainPhysicsPostLoader.RemoveBlockObjects，补丁未安装");
+                Debug.LogWarning("[VisualTerrainBlock] 未找到 TerrainPhysicsPostLoader.RemoveBlockObjects，跳过该路径");
                 return;
             }
 
-            Patches existing = Harmony.GetPatchInfo(target);
-            if (existing != null && existing.Prefixes.Any(patch => patch.owner == HarmonyId))
+            if (AlreadyPatched(target))
             {
-                Debug.Log("[VisualTerrainBlock] 补丁已存在，跳过");
                 return;
             }
 
-            _validBlockObjectsField = loaderType.GetField("_validBlockObjects",
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            _entityRegistryField = loaderType.GetField("_entityRegistry",
-                BindingFlags.Instance | BindingFlags.NonPublic);
+            _validBlockObjectsField = loaderType.GetField("_validBlockObjects", BindingFlags.Instance | BindingFlags.NonPublic);
+            _entityRegistryField = loaderType.GetField("_entityRegistry", BindingFlags.Instance | BindingFlags.NonPublic);
             if (_validBlockObjectsField == null || _entityRegistryField == null)
             {
-                Debug.LogError("[VisualTerrainBlock] 内部字段名变了，补丁未安装");
+                Debug.LogWarning("[VisualTerrainBlock] TerrainPhysicsPostLoader 内部字段名变了，跳过该路径");
                 return;
             }
 
-            MethodInfo prefix = typeof(LoadCleanupPatch).GetMethod(nameof(ProtectOurBlocks),
+            MethodInfo prefix = typeof(LoadCleanupPatch).GetMethod(nameof(ProtectInPostLoader),
                 BindingFlags.Static | BindingFlags.NonPublic);
             new Harmony(HarmonyId).Patch(target, prefix: new HarmonyMethod(prefix));
             Debug.Log("[VisualTerrainBlock] 已给 TerrainPhysicsPostLoader.RemoveBlockObjects 打补丁");
         }
 
-        private static bool ProtectOurBlocks(object __instance)
+        private static void PatchDeleteFinder()
+        {
+            Type finderType = Type.GetType("Timberborn.TerrainPhysics.TerrainAndBlockObjectsToDeleteFinder, Timberborn.TerrainPhysics");
+            MethodInfo target = finderType?.GetMethod("FindAll",
+                BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            if (target == null)
+            {
+                Debug.LogWarning("[VisualTerrainBlock] 未找到 TerrainAndBlockObjectsToDeleteFinder.FindAll，跳过该路径");
+                return;
+            }
+
+            if (AlreadyPatched(target))
+            {
+                return;
+            }
+
+            MethodInfo postfix = typeof(LoadCleanupPatch).GetMethod(nameof(StripOurBlocksFromDeleteSet),
+                BindingFlags.Static | BindingFlags.NonPublic);
+            new Harmony(HarmonyId).Patch(target, postfix: new HarmonyMethod(postfix));
+            Debug.Log("[VisualTerrainBlock] 已给 TerrainAndBlockObjectsToDeleteFinder.FindAll 打补丁");
+        }
+
+        private static bool AlreadyPatched(MethodInfo target)
+        {
+            Patches existing = Harmony.GetPatchInfo(target);
+            return existing != null && existing.Owners.Contains(HarmonyId);
+        }
+
+        /// <summary>旧路径：RemoveBlockObjects 执行前把我们的方块补登记进白名单。</summary>
+        private static bool ProtectInPostLoader(object __instance)
         {
             try
             {
@@ -97,23 +128,9 @@ namespace Jove.VisualTerrainBlock
                 }
 
                 int protectedCount = 0;
-                foreach (EntityComponent entity in registry.Entities)
+                foreach (BlockObject blockObject in CollectOurBlocks(registry))
                 {
-                    bool isOurs = false;
-                    BlockObject blockObject = null;
-                    foreach (object component in entity.RegisteredComponents)
-                    {
-                        if (component is VisualTerrainBlockMarker)
-                        {
-                            isOurs = true;
-                        }
-                        else if (component is BlockObject candidate)
-                        {
-                            blockObject = candidate;
-                        }
-                    }
-
-                    if (isOurs && blockObject != null && validObjects.Add(blockObject))
+                    if (validObjects.Add(blockObject))
                     {
                         protectedCount++;
                     }
@@ -131,6 +148,68 @@ namespace Jove.VisualTerrainBlock
 
             // 继续执行原方法，其它对象的校验不受影响
             return true;
+        }
+
+        /// <summary>主路径：从待删除集合里把我们的方块摘掉。</summary>
+        private static void StripOurBlocksFromDeleteSet(IEnumerable<Vector3Int> terrainToDelete,
+            HashSet<Vector3Int> terrainSet, HashSet<BlockObject> blockObjectsToDelete)
+        {
+            try
+            {
+                if (blockObjectsToDelete == null || blockObjectsToDelete.Count == 0 || _entityRegistry == null)
+                {
+                    return;
+                }
+
+                HashSet<BlockObject> ours = new HashSet<BlockObject>(CollectOurBlocks(_entityRegistry));
+                if (ours.Count == 0)
+                {
+                    return;
+                }
+
+                int removed = blockObjectsToDelete.RemoveWhere(ours.Contains);
+                if (removed > 0)
+                {
+                    Debug.Log("[VisualTerrainBlock] 载入删除列表中摘出了 " + removed + " 个悬空地形块");
+                }
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError("[VisualTerrainBlock] 清理删除列表时出错: " + exception);
+            }
+        }
+
+        private static IEnumerable<BlockObject> CollectOurBlocks(EntityRegistry registry)
+        {
+            OurBlocks.Clear();
+            foreach (EntityComponent entity in registry.Entities)
+            {
+                bool isOurs = false;
+                foreach (object component in entity.RegisteredComponents)
+                {
+                    if (component is VisualTerrainBlockMarker)
+                    {
+                        isOurs = true;
+                        break;
+                    }
+                }
+
+                if (!isOurs)
+                {
+                    continue;
+                }
+
+                foreach (object component in entity.RegisteredComponents)
+                {
+                    if (component is BlockObject blockObject)
+                    {
+                        OurBlocks.Add(blockObject);
+                        break;
+                    }
+                }
+            }
+
+            return OurBlocks;
         }
     }
 }

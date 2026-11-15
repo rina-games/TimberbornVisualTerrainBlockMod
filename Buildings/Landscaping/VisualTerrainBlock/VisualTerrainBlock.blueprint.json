@@ -9,7 +9,7 @@
       }
     ],
     "ScienceCost": 1000,
-    "PlaceFinished": false,
+    "PlaceFinished": true,
     "FinishableWithBeaversOnSite": true,
     "DrawRangeBoundsOnIt": false
   },
@@ -163,6 +163,5 @@
         }
       }
     }
-  },
-  "GroundRaiserSpec": {}
+  }
 }

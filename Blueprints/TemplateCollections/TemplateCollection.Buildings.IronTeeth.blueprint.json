@@ -1,0 +1,8 @@
+{
+  "TemplateCollectionSpec": {
+    "CollectionId": "Buildings.IronTeeth",
+    "Blueprints#append": [
+      "Buildings/Landscaping/VisualTerrainBlock/VisualTerrainBlock.blueprint"
+    ]
+  }
+}

@@ -1,0 +1,3 @@
+ID,Text,Comment
+Building.VisualTerrainBlock.DisplayName,悬空地形块,Floating terrain block
+Building.VisualTerrainBlock.Description,外观与地形块一致，但不需要下方支撑，可以贴着墙面水平延伸或悬空摆放。,Terrain-styled block with no support requirement

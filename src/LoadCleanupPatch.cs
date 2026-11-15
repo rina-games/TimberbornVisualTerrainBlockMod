@@ -23,8 +23,10 @@ namespace Jove.VisualTerrainBlock
     ///   1) prefix 掉 TerrainPhysicsPostLoader.Validate()，直接当"校验通过"返回。
     ///      （白名单是 GetInitialCandidates 从地图底部逐列 BFS 填出来的，悬空方块进不去，
     ///        所以逐个登记白名单这条路走不通；直接跳过整段清理更可靠。）
-    ///   2) 顺带在 TerrainAndBlockObjectsToDeleteFinder.FindAll 的产出集合里按方块名摘掉我们的方块，
-    ///      防止其它路径复用这份删除列表。
+    ///   2) 拆除/删除工具也走 TerrainAndBlockObjectsToDeleteFinder.FindAll：
+    ///      玩家选中的方块已经在输入集合里，随后物理系统再往同一份集合里追加"连带该塌的"。
+    ///      只能摘掉连带追加的悬空地形块。输入里原本就有的必须留下，
+    ///      否则未完工的工地被选中后集合被清空，确认框不出现，表现就是"选中了没反应"。
     ///
     /// 识别一律用 BlockObject.Name（游戏侧属性，形如 "VisualTerrainBlock(Clone)"），
     /// 不依赖本程序集里的自定义类型——mod 程序集可能被游戏加载多份，类型身份对不上。
@@ -100,13 +102,28 @@ namespace Jove.VisualTerrainBlock
                 })
                 .ToList();
 
-            MethodInfo postfix = typeof(LoadCleanupPatch).GetMethod(nameof(StripOurBlocks),
+            MethodInfo stripAll = typeof(LoadCleanupPatch).GetMethod(nameof(StripOurBlocks),
+                BindingFlags.Static | BindingFlags.NonPublic);
+            MethodInfo rememberSelected = typeof(LoadCleanupPatch).GetMethod(nameof(RememberSelected),
+                BindingFlags.Static | BindingFlags.NonPublic);
+            MethodInfo stripUnselected = typeof(LoadCleanupPatch).GetMethod(nameof(StripUnselected),
                 BindingFlags.Static | BindingFlags.NonPublic);
             foreach (MethodInfo target in targets.Where(target => !AlreadyPatched(target)))
             {
-                new Harmony(HarmonyId).Patch(target, postfix: new HarmonyMethod(postfix));
-                Debug.Log("[VisualTerrainBlock] 已给 FindAll 打补丁: "
-                          + string.Join(", ", target.GetParameters().Select(parameter => parameter.ParameterType.Name)));
+                bool playerSelection = target.GetParameters()[0].ParameterType == typeof(IEnumerable<BlockObject>);
+                if (playerSelection)
+                {
+                    new Harmony(HarmonyId).Patch(target,
+                        prefix: new HarmonyMethod(rememberSelected),
+                        postfix: new HarmonyMethod(stripUnselected));
+                    Debug.Log("[VisualTerrainBlock] 已给 FindAll(BlockObject) 打补丁（保留玩家选中的悬空地形块，只摘连带删除）");
+                }
+                else
+                {
+                    new Harmony(HarmonyId).Patch(target, postfix: new HarmonyMethod(stripAll));
+                    Debug.Log("[VisualTerrainBlock] 已给 FindAll 打补丁: "
+                              + string.Join(", ", target.GetParameters().Select(parameter => parameter.ParameterType.Name)));
+                }
             }
         }
 
@@ -134,6 +151,47 @@ namespace Jove.VisualTerrainBlock
             return false;
         }
 
+        /// <summary>
+        /// 拆除工具把选中的方块直接放进 FindAll 的输入。先记下这些方块，postfix 里不要摘掉。
+        /// </summary>
+        private static void RememberSelected(IEnumerable<BlockObject> __0, out HashSet<BlockObject> __state)
+        {
+            __state = new HashSet<BlockObject>();
+            if (__0 == null)
+            {
+                return;
+            }
+
+            foreach (BlockObject blockObject in __0)
+            {
+                if (IsOurBlock(blockObject))
+                {
+                    __state.Add(blockObject);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 玩家选中的悬空地形块留在删除列表里；物理系统事后追加的连带删除仍然摘掉。
+        /// </summary>
+        private static void StripUnselected(HashSet<BlockObject> __2, HashSet<BlockObject> __state)
+        {
+            try
+            {
+                if (__2 == null || __2.Count == 0)
+                {
+                    return;
+                }
+
+                __2.RemoveWhere(blockObject =>
+                    IsOurBlock(blockObject) && (__state == null || !__state.Contains(blockObject)));
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError("[VisualTerrainBlock] 清理删除列表时出错: " + exception);
+            }
+        }
+
         private static void StripOurBlocks(HashSet<BlockObject> __2)
         {
             try
@@ -144,11 +202,7 @@ namespace Jove.VisualTerrainBlock
                     return;
                 }
 
-                int removed = blockObjectsToDelete.RemoveWhere(IsOurBlock);
-                if (removed > 0)
-                {
-                    Debug.Log("[VisualTerrainBlock] 载入删除列表中摘出了 " + removed + " 个悬空地形块");
-                }
+                blockObjectsToDelete.RemoveWhere(IsOurBlock);
             }
             catch (Exception exception)
             {

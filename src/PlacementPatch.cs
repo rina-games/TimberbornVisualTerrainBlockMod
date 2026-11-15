@@ -16,7 +16,8 @@ namespace Jove.VisualTerrainBlock
     /// 叠在已有方块上（下方有东西）判定通过，往旁边伸进空气里判定失败 —— 表现为"只能往上建"。
     ///
     /// 这里对 ValidateBlockObjectPreview 打 prefix：预览对象是我们的悬空地形块时直接判通过。
-    /// 顺带把 CanBeDestroyed 也护住，避免地形变化（炸药、挖掘）时物理系统顺手删掉周边的悬空块。
+    /// 顺带把 CanBeDestroyed 也护住，避免地形变化时物理系统顺手删掉还没建成的悬空工地。
+    /// 建成后的真地形不再拦截，支撑不足时仍按原版规则塌落。
     /// </summary>
     public class PlacementPatch : ILoadableSingleton
     {
@@ -44,7 +45,6 @@ namespace Jove.VisualTerrainBlock
 
                 PatchMethod(serviceType, "ValidateBlockObjectPreview", nameof(AllowPreview));
                 PatchMethod(serviceType, "CanBeDestroyed", nameof(ProtectFromPhysicsDeletion));
-                PatchCanTerrainBeAdded(serviceType);
             }
             catch (Exception exception)
             {
@@ -83,49 +83,6 @@ namespace Jove.VisualTerrainBlock
             Debug.Log("[VisualTerrainBlock] 已给 " + type.Name + "." + methodName + " 打补丁");
         }
 
-        /// <summary>
-        /// 允许在任何位置加地形：GroundRaiserSpec 完工时调 SetTerrain，
-        /// 而搭建校验 PhysicallySupportedConstructionSite.Validate 就是 IsValid = CanTerrainBeAdded(coords)，
-        /// 所以这一个开关同时放开"悬空地形能建成"和"建成的悬空地形合法"。
-        /// </summary>
-        private static void PatchCanTerrainBeAdded(Type serviceType)
-        {
-            MethodInfo target = serviceType
-                .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
-                .FirstOrDefault(method =>
-                {
-                    if (method.Name != "CanTerrainBeAdded")
-                    {
-                        return false;
-                    }
-
-                    ParameterInfo[] parameters = method.GetParameters();
-                    return parameters.Length == 1 && parameters[0].ParameterType == typeof(Vector3Int);
-                });
-            if (target == null)
-            {
-                Debug.LogWarning("[VisualTerrainBlock] 找不到 CanTerrainBeAdded(Vector3Int)，悬空地形可能建不成");
-                return;
-            }
-
-            Patches existing = Harmony.GetPatchInfo(target);
-            if (existing != null && existing.Owners.Contains(HarmonyId))
-            {
-                return;
-            }
-
-            MethodInfo prefix = typeof(PlacementPatch).GetMethod(nameof(AllowTerrainAdded),
-                BindingFlags.Static | BindingFlags.NonPublic);
-            new Harmony(HarmonyId).Patch(target, prefix: new HarmonyMethod(prefix));
-            Debug.Log("[VisualTerrainBlock] 已给 TerrainPhysicsService.CanTerrainBeAdded 打补丁（允许在任意位置生成地形）");
-        }
-
-        private static bool AllowTerrainAdded(ref bool __result)
-        {
-            __result = true;
-            return false;
-        }
-
         /// <summary>光标预览：我们的方块不需要物理支撑。</summary>
         private static bool AllowPreview(BlockObject __0, ref bool __result)
         {
@@ -138,7 +95,7 @@ namespace Jove.VisualTerrainBlock
             return false;
         }
 
-        /// <summary>物理清理：不要因为"没支撑"删掉我们的方块。</summary>
+        /// <summary>物理清理：不要因为没支撑删掉还没建成的悬空工地。建成后的地形不在这里。</summary>
         private static bool ProtectFromPhysicsDeletion(BlockObject __0, ref bool __result)
         {
             if (!IsOurBlock(__0))

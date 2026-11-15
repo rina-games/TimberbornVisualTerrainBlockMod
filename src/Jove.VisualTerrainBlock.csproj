@@ -6,7 +6,7 @@
     <Nullable>disable</Nullable>
     <AssemblyName>Jove.VisualTerrainBlock</AssemblyName>
     <RootNamespace>Jove.VisualTerrainBlock</RootNamespace>
-    <Version>0.4.1</Version>
+    <Version>0.5.0</Version>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateDependencyFile>false</GenerateDependencyFile>
     <TimberbornManaged Condition="'$(TimberbornManaged)' == ''">$(HOME)/Library/Application Support/Steam/steamapps/common/Timberborn/Timberborn.app/Contents/Resources/Data/Managed</TimberbornManaged>
@@ -19,10 +19,6 @@
       <HintPath>$(TimberbornManaged)/Timberborn.BaseComponentSystem.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <Reference Include="Timberborn.BlueprintSystem">
-      <HintPath>$(TimberbornManaged)/Timberborn.BlueprintSystem.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
     <Reference Include="Timberborn.EntitySystem">
       <HintPath>$(TimberbornManaged)/Timberborn.EntitySystem.dll</HintPath>
       <Private>false</Private>
@@ -31,8 +27,16 @@
       <HintPath>$(TimberbornManaged)/Timberborn.BlockSystem.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="Timberborn.MapIndexSystem">
+      <HintPath>$(TimberbornManaged)/Timberborn.MapIndexSystem.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="Timberborn.TerrainSystem">
       <HintPath>$(TimberbornManaged)/Timberborn.TerrainSystem.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Timberborn.DeconstructionSystem">
+      <HintPath>$(TimberbornManaged)/Timberborn.DeconstructionSystem.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Timberborn.Common">

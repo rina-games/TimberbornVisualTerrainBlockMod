@@ -1,6 +1,6 @@
 {
   "Name": "Visual Terrain Block",
-  "Version": "0.4.1",
+  "Version": "0.5.0",
   "Id": "Jove.VisualTerrainBlock",
   "MinimumGameVersion": "1.1.0.0",
   "Description": "悬空地形块：可悬空放置、海狸施工，建成后变成真地形（可挖/挡水/种树）。Terrain block placeable without support; beavers build it, then it becomes real terrain.",

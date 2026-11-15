@@ -7,6 +7,8 @@ REPO="$(cd "$(dirname "$0")/.." && pwd)"
 DEST="${MOD_DEST:-$HOME/Documents/Timberborn/Mods/VisualTerrainBlock}"
 
 mkdir -p "$DEST"
+# 建筑蓝图必须在 mod 根目录的 Buildings/ 下（放在 Blueprints/ 里会 Blueprint not found）
+rsync -a --delete "$REPO/Buildings/" "$DEST/Buildings/"
 rsync -a --delete "$REPO/Blueprints/" "$DEST/Blueprints/"
 rsync -a --delete "$REPO/Localizations/" "$DEST/Localizations/"
 cp "$REPO/manifest.json" "$DEST/manifest.json"

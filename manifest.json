@@ -1,9 +1,11 @@
 {
   "Name": "Visual Terrain Block",
-  "Version": "0.1.0",
+  "Version": "0.1.1",
   "Id": "Jove.VisualTerrainBlock",
   "MinimumGameVersion": "1.1.0.0",
   "Description": "可悬空延伸的地形方块（视觉版，第一阶段）。Terrain-style block that can be placed without support - visual stage.",
-  "RequiredMods": [],
+  "RequiredMods": [
+    { "Id": "Harmony", "MinimumVersion": "2.4.1" }
+  ],
   "OptionalMods": []
 }

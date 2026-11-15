@@ -65,6 +65,7 @@
   "ConstructionSiteProgressVisualizerSpec": {
     "ProgressThresholds": [0.0]
   },
+  "VisualTerrainBlockMarkerSpec": {},
   "Children": {
     "#Finished": {
       "TimbermeshSpec": {

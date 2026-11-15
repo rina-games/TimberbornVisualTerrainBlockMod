@@ -1,0 +1,5 @@
+src/bin/
+src/obj/
+Scripts/*.pdb
+src/*.pdb
+.DS_Store

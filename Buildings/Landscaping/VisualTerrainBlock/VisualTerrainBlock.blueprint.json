@@ -3,7 +3,10 @@
     "SelectionSoundName": "Default",
     "LoopingSoundName": "",
     "BuildingCost": [
-      { "Id": "Dirt", "Amount": 4 }
+      {
+        "Id": "Dirt",
+        "Amount": 4
+      }
     ],
     "ScienceCost": 1000,
     "PlaceFinished": false,
@@ -25,17 +28,28 @@
     "DisablingFeatureToggle": ""
   },
   "BlockObjectSpec": {
-    "Size": { "X": 1, "Y": 1, "Z": 1 },
+    "Size": {
+      "X": 1,
+      "Y": 1,
+      "Z": 1
+    },
     "Blocks": [
       {
         "MatterBelow": "Any",
         "Occupations": "All",
-        "Stackable": "BlockObject",
+        "Stackable": "UnfinishedGround",
         "OccupyAllBelow": false,
         "Underground": false
       }
     ],
-    "Entrance": { "HasEntrance": false, "Coordinates": { "X": 0, "Y": 0, "Z": 0 } },
+    "Entrance": {
+      "HasEntrance": false,
+      "Coordinates": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0
+      }
+    },
     "BaseZ": 0,
     "Overridable": false,
     "Flippable": false
@@ -52,7 +66,14 @@
     "ToolOrder": 110,
     "ToolShape": "Square",
     "Layout": "Rectangle",
-    "CustomPivot": { "HasCustomPivot": false, "Coordinates": { "X": 0.0, "Y": 0.0, "Z": 0.0 } },
+    "CustomPivot": {
+      "HasCustomPivot": false,
+      "Coordinates": {
+        "X": 0.0,
+        "Y": 0.0,
+        "Z": 0.0
+      }
+    },
     "CanBeAttachedToTerrainSide": true,
     "DevModeTool": false
   },
@@ -63,7 +84,9 @@
     "Icon": "Buildings/Landscaping/TerrainBlock/TerrainBlockIcon"
   },
   "ConstructionSiteProgressVisualizerSpec": {
-    "ProgressThresholds": [0.0]
+    "ProgressThresholds": [
+      0.0
+    ]
   },
   "VisualTerrainBlockMarkerSpec": {},
   "Children": {
@@ -74,8 +97,16 @@
       "CollidersSpec": {
         "BoxColliders": [
           {
-            "Center": { "X": 0.500797, "Y": 0.499820054, "Z": 0.49632743 },
-            "Size": { "X": 1.01341784, "Y": 0.9996401, "Z": 0.9947174 }
+            "Center": {
+              "X": 0.500797,
+              "Y": 0.499820054,
+              "Z": 0.49632743
+            },
+            "Size": {
+              "X": 1.01341784,
+              "Y": 0.9996401,
+              "Z": 0.9947174
+            }
           }
         ],
         "SphereColliders": [],
@@ -91,8 +122,16 @@
           "CollidersSpec": {
             "BoxColliders": [
               {
-                "Center": { "X": 0.500797, "Y": 0.499820054, "Z": 0.49632743 },
-                "Size": { "X": 1.01341784, "Y": 0.9996401, "Z": 0.9947174 }
+                "Center": {
+                  "X": 0.500797,
+                  "Y": 0.499820054,
+                  "Z": 0.49632743
+                },
+                "Size": {
+                  "X": 1.01341784,
+                  "Y": 0.9996401,
+                  "Z": 0.9947174
+                }
               }
             ],
             "SphereColliders": [],
@@ -106,8 +145,16 @@
           "CollidersSpec": {
             "BoxColliders": [
               {
-                "Center": { "X": 0.4927433, "Y": 0.499896049, "Z": 0.5035554 },
-                "Size": { "X": 0.998579144, "Y": 0.9997921, "Z": 0.9409611 }
+                "Center": {
+                  "X": 0.4927433,
+                  "Y": 0.499896049,
+                  "Z": 0.5035554
+                },
+                "Size": {
+                  "X": 0.998579144,
+                  "Y": 0.9997921,
+                  "Z": 0.9409611
+                }
               }
             ],
             "SphereColliders": [],
@@ -116,5 +163,6 @@
         }
       }
     }
-  }
+  },
+  "GroundRaiserSpec": {}
 }

@@ -44,6 +44,7 @@ namespace Jove.VisualTerrainBlock
 
                 PatchMethod(serviceType, "ValidateBlockObjectPreview", nameof(AllowPreview));
                 PatchMethod(serviceType, "CanBeDestroyed", nameof(ProtectFromPhysicsDeletion));
+                PatchCanTerrainBeAdded(serviceType);
             }
             catch (Exception exception)
             {
@@ -80,6 +81,49 @@ namespace Jove.VisualTerrainBlock
             MethodInfo prefix = typeof(PlacementPatch).GetMethod(prefixName, BindingFlags.Static | BindingFlags.NonPublic);
             new Harmony(HarmonyId).Patch(target, prefix: new HarmonyMethod(prefix));
             Debug.Log("[VisualTerrainBlock] 已给 " + type.Name + "." + methodName + " 打补丁");
+        }
+
+        /// <summary>
+        /// 允许在任何位置加地形：GroundRaiserSpec 完工时调 SetTerrain，
+        /// 而搭建校验 PhysicallySupportedConstructionSite.Validate 就是 IsValid = CanTerrainBeAdded(coords)，
+        /// 所以这一个开关同时放开"悬空地形能建成"和"建成的悬空地形合法"。
+        /// </summary>
+        private static void PatchCanTerrainBeAdded(Type serviceType)
+        {
+            MethodInfo target = serviceType
+                .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
+                .FirstOrDefault(method =>
+                {
+                    if (method.Name != "CanTerrainBeAdded")
+                    {
+                        return false;
+                    }
+
+                    ParameterInfo[] parameters = method.GetParameters();
+                    return parameters.Length == 1 && parameters[0].ParameterType == typeof(Vector3Int);
+                });
+            if (target == null)
+            {
+                Debug.LogWarning("[VisualTerrainBlock] 找不到 CanTerrainBeAdded(Vector3Int)，悬空地形可能建不成");
+                return;
+            }
+
+            Patches existing = Harmony.GetPatchInfo(target);
+            if (existing != null && existing.Owners.Contains(HarmonyId))
+            {
+                return;
+            }
+
+            MethodInfo prefix = typeof(PlacementPatch).GetMethod(nameof(AllowTerrainAdded),
+                BindingFlags.Static | BindingFlags.NonPublic);
+            new Harmony(HarmonyId).Patch(target, prefix: new HarmonyMethod(prefix));
+            Debug.Log("[VisualTerrainBlock] 已给 TerrainPhysicsService.CanTerrainBeAdded 打补丁（允许在任意位置生成地形）");
+        }
+
+        private static bool AllowTerrainAdded(ref bool __result)
+        {
+            __result = true;
+            return false;
         }
 
         /// <summary>光标预览：我们的方块不需要物理支撑。</summary>

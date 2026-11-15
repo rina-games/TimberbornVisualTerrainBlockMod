@@ -9,6 +9,7 @@ namespace Jove.VisualTerrainBlock
         protected override void Configure()
         {
             Bind<LoadCleanupPatch>().AsSingleton();
+            Bind<ExplosionPatch>().AsSingleton();
         }
     }
 }

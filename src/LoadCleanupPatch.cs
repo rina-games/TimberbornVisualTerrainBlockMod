@@ -123,17 +123,22 @@ namespace Jove.VisualTerrainBlock
             return existing != null && existing.Owners.Contains(HarmonyId);
         }
 
-        /// <summary>让载入期的"无支撑结构清理"整段不生效。</summary>
+        /// <summary>
+        /// 让载入期的"无支撑结构清理"整段不生效。
+        /// 注意返回值语义：ValidateAll 是 while (Validate()) 循环——返回 true 会无限循环（实测卡在加载界面），
+        /// 所以这里必须返回 false（= "没有需要清理的东西了"）。
+        /// </summary>
         private static bool SkipValidate(ref bool __result)
         {
-            __result = true;
+            __result = false;
             return false;
         }
 
-        private static void StripOurBlocks(object terrainToDelete, object terrainSet, HashSet<BlockObject> blockObjectsToDelete)
+        private static void StripOurBlocks(HashSet<BlockObject> __2)
         {
             try
             {
+                HashSet<BlockObject> blockObjectsToDelete = __2;
                 if (blockObjectsToDelete == null || blockObjectsToDelete.Count == 0)
                 {
                     return;

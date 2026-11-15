@@ -19,18 +19,22 @@ namespace Jove.VisualTerrainBlock
     /// <summary>
     /// 悬空地形块的标记 + 转换组件。
     ///
-    /// 玩法：方块是"放下即成"的（蓝图 PlaceFinished = true），没有施工阶段——
-    /// 因为悬空位置工人多半到不了，工地会永远卡着，而且工地用拆除工具也选不中。
-    /// 实体初始化完成后，这里直接把这一格变成真地形，再把方块实体删掉：
-    ///   1) 真地形 → 可挖、挡水、能种树、放置时按格对齐（走地形拾取分支）
-    ///   2) 没有残留方块 → 不存在"拆不掉"的对象
+    /// 玩法保留"工地 → 海狸施工 → 建成"：施工阶段就是普通建筑工地。
+    /// 建成的那一刻（`BlockObject.IsFinished` 变 true）把这个方块实体删掉，
+    /// 并在同一格生成真地形（`SetTerrain(coords, 1)`，参数照抄原版
+    /// `GroundRaisingService.OnEntityDeleted`）。
     ///
-    /// 转换参数照抄原版 GroundRaisingService.OnEntityDeleted：SetTerrain(coords, 1)。
+    /// 这样：
+    ///   1) 建造过程保留（要工人、要材料）
+    ///   2) 建成后是真地形 → 可挖、挡水、能种树、放置时按格对齐
+    ///   3) 施工中的工地可以用拆除工具取消（见 DeletionPatch）
     /// </summary>
-    public class VisualTerrainBlockMarker : BaseComponent, IPostInitializableEntity
+    public class VisualTerrainBlockMarker : BaseComponent, IPostInitializableEntity, IUpdatableComponent
     {
         private readonly ITerrainService _terrainService;
         private readonly EntityService _entityService;
+
+        private bool _converted;
 
         public VisualTerrainBlockMarker(ITerrainService terrainService, EntityService entityService)
         {
@@ -40,6 +44,25 @@ namespace Jove.VisualTerrainBlock
 
         public void PostInitializeEntity()
         {
+            TryConvert();
+        }
+
+        public void Update()
+        {
+            // 建成的那一帧转成地形；转完后实体被删掉，不会再进入这里
+            if (!_converted)
+            {
+                TryConvert();
+            }
+        }
+
+        private void TryConvert()
+        {
+            if (_converted)
+            {
+                return;
+            }
+
             try
             {
                 BlockObject blockObject = GetComponent<BlockObject>();
@@ -48,12 +71,14 @@ namespace Jove.VisualTerrainBlock
                     return;
                 }
 
+                _converted = true;
                 Vector3Int coordinates = blockObject.Coordinates;
                 _terrainService.SetTerrain(coordinates, 1);
                 _entityService.Delete(this);
             }
             catch (Exception exception)
             {
+                _converted = true;
                 Debug.LogError("[VisualTerrainBlock] 转换成真地形失败: " + exception);
             }
         }

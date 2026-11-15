@@ -11,6 +11,7 @@ namespace Jove.VisualTerrainBlock
             Bind<LoadCleanupPatch>().AsSingleton();
             Bind<ExplosionPatch>().AsSingleton();
             Bind<PlacementPatch>().AsSingleton();
+            Bind<DeletionPatch>().AsSingleton();
         }
     }
 }

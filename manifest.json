@@ -1,6 +1,6 @@
 {
   "Name": "Visual Terrain Block",
-  "Version": "0.3.0",
+  "Version": "0.3.1",
   "Id": "Jove.VisualTerrainBlock",
   "MinimumGameVersion": "1.1.0.0",
   "Description": "悬空地形块：放下即成真地形，任意方向延伸。Terrain-style block that turns into real terrain on placement, no support needed.",
